@@ -1,42 +1,40 @@
 [app]
 
-# Tên ứng dụng
+# --- CẤU HÌNH BẮT BUỘC (ĐỂ KHÔNG BỊ LỖI) ---
+# Đặt dòng này ngay dưới [app] để chắc chắn buildozer đọc được
+ios.codesign.allowed = false
+
+# Thông tin cơ bản
 title = Tool Cham Cong
 package.name = chamcong
 package.domain = org.test
-
-# Source code
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 
 # Version
 version = 1.0
 
-# Các thư viện cần thiết
+# Thư viện
 requirements = python3,kivy,pyzk
 
-# Cấu hình hiển thị
+# Cấu hình màn hình
 orientation = portrait
 fullscreen = 0
 
-# --- CẤU HÌNH IOS QUAN TRỌNG (ĐÃ SỬA) ---
-[buildozer]
-log_level = 2
-warn_on_root = 1
-
-[app:ios]
-# Quyền truy cập mạng LAN (Bắt buộc)
-ios.plist_key_NSLocalNetworkUsageDescription = "Ứng dụng cần truy cập mạng nội bộ để kết nối máy chấm công"
-ios.plist_key_NSBonjourServices = _http._tcp.
-
-# --- PHẦN SỬA LỖI CHÍNH Ở ĐÂY ---
-# Báo cho Buildozer biết không cần kiểm tra chứng chỉ Code Sign xịn
-ios.codesign.allowed = false
-ios.codesign.debug = "iPhone Developer"
-ios.codesign.release = "iPhone Distribution"
-
-# Các đường dẫn Github (giữ nguyên)
+# Cấu hình iOS (Nằm trong section app nhưng có tiền tố ios.)
 ios.kivy_ios_url = https://github.com/kivy/kivy-ios
 ios.ios_deploy_url = https://github.com/phonegap/ios-deploy
 ios.branch = master
 ios.ouput_dir = bin
+
+# Quyền mạng LAN (Quan trọng cho App chấm công)
+ios.plist_key_NSLocalNetworkUsageDescription = "App can truy cap mang LAN de ket noi may cham cong"
+ios.plist_key_NSBonjourServices = _http._tcp.
+
+# Cấu hình chứng chỉ ảo (để bypass lỗi)
+ios.codesign.debug = "iPhone Developer"
+ios.codesign.release = "iPhone Distribution"
+
+[buildozer]
+log_level = 2
+warn_on_root = 1
