@@ -7,12 +7,11 @@ jobs:
   build-ios:
     runs-on: macos-14
     
-    # Thiết lập biến môi trường để trỏ thẳng vào các thư viện có sẵn
-    # Không cần brew link, chỉ cần chỉ đường dẫn cho trình biên dịch
     env:
-      LDFLAGS: "-L/opt/homebrew/lib -L/opt/homebrew/opt/openssl@3/lib"
-      CPPFLAGS: "-I/opt/homebrew/include -I/opt/homebrew/opt/openssl@3/include"
-      PKG_CONFIG_PATH: "/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/openssl@3/lib/pkgconfig"
+      # Biến môi trường giúp trình biên dịch tìm thấy libffi và openssl
+      LDFLAGS: "-L/opt/homebrew/lib -L/opt/homebrew/opt/libffi/lib -L/opt/homebrew/opt/openssl@3/lib"
+      CPPFLAGS: "-I/opt/homebrew/include -I/opt/homebrew/opt/libffi/include -I/opt/homebrew/opt/openssl@3/include"
+      PKG_CONFIG_PATH: "/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig:/opt/homebrew/opt/openssl@3/lib/pkgconfig"
 
     steps:
       - uses: actions/checkout@v4
@@ -22,32 +21,39 @@ jobs:
         with:
           python-version: '3.11'
 
-      # BƯỚC NÀY ĐÃ ĐƯỢC RÚT GỌN TỐI ĐA
-      # Không chạy brew install/link nữa để tránh lỗi "Already installed"
+      # Cài đặt system dep an toàn (dùng || true để không crash nếu đã có)
+      - name: Install system dependencies
+        run: |
+          brew update
+          brew install autoconf automake libtool pkg-config cmake openssl@3 libffi || true
+          brew link --overwrite autoconf automake libtool pkg-config cmake || true
+
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           
-          # Cài Cython bản cũ (bắt buộc cho Kivy trên iOS hiện tại)
-          pip install Cython==0.29.36
+          # CẬP NHẬT QUAN TRỌNG: Dùng Cython 3 cho macOS 14 + Kivy mới
+          pip install "Cython==3.0.11"
           
-          # Cài Buildozer
           pip install buildozer
+          # Cài cookiecutter (buildozer cần cái này để tạo project template)
+          pip install cookiecutter
           
-          # Cài Kivy-iOS từ source mới nhất
+          # Cài Kivy-iOS mới nhất
           pip install git+https://github.com/kivy/kivy-ios.git
+
+      # Bước này build trước các thư viện nền tảng để tránh buildozer bị "ngợp"
+      - name: Pre-build Kivy & Python
+        run: |
+          # Khởi tạo toolchain
+          toolchain build python3 kivy
 
       - name: Build IPA with Buildozer
         run: |
-          # Cấp quyền ghi cho thư mục hiện tại
           chmod -R 755 .
-          
-          # Lấy đường dẫn SDK iOS hiện tại
           export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          echo "Using SDK: $SDKROOT"
           
-          # Chạy build
-          # Thêm verbose log (-v) để nếu lỗi thì biết lỗi ở đâu
+          # Chạy buildozer với chế độ verbose (-v) để hiện rõ lỗi nếu có
           yes | buildozer -v ios debug
 
       - name: Upload IPA artifact
