@@ -7,48 +7,59 @@ jobs:
   build-ios:
     runs-on: macos-14
     
-    # --- KHẮC PHỤC LỖI LINK ---
-    # Thay vì chạy brew link (gây lỗi), ta chỉ đường dẫn trực tiếp cho trình biên dịch
+    # Biến môi trường
     env:
       LDFLAGS: "-L/opt/homebrew/lib -L/opt/homebrew/opt/libffi/lib -L/opt/homebrew/opt/openssl@3/lib"
       CPPFLAGS: "-I/opt/homebrew/include -I/opt/homebrew/opt/libffi/include -I/opt/homebrew/opt/openssl@3/include"
       PKG_CONFIG_PATH: "/opt/homebrew/lib/pkgconfig:/opt/homebrew/opt/libffi/lib/pkgconfig:/opt/homebrew/opt/openssl@3/lib/pkgconfig"
 
     steps:
+      # Tải code về với đầy đủ lịch sử git
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # --- BƯỚC CÀI ĐẶT HỆ THỐNG ĐÃ BỊ XÓA BỎ ĐỂ TRÁNH LỖI ---
-      # Chúng ta nhảy thẳng vào cài thư viện Python
+      # --- BƯỚC NÀY ĐƯỢC THÊM LẠI ĐỂ SỬA LỖI AUTOCONF ---
+      - name: Install System Dependencies
+        run: |
+          brew update
+          # Cài đặt autoconf, automake, libtool (Bắt buộc cho Buildozer)
+          # Thêm "|| true" để nếu có lỗi nhỏ (như warning) thì vẫn chạy tiếp
+          brew install autoconf automake libtool || true
+          
+          # Link lại để chắc chắn hệ thống tìm thấy (bỏ qua lỗi nếu đã link)
+          brew link --overwrite autoconf automake libtool || true
+          
+          # Kiểm tra xem cài được chưa (in ra đường dẫn)
+          which autoconf
+          which automake
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          
-          # Cython 3.0.11 là bắt buộc cho Xcode 15+ trên macOS 14
           pip install "Cython==3.0.11"
-          
           pip install buildozer cookiecutter
-          
-          # Cài Kivy-iOS bản mới nhất từ Github
           pip install git+https://github.com/kivy/kivy-ios.git
+
+      # Build trước các thư viện lõi
+      - name: Build Core Recipes
+        run: |
+          toolchain build python3
+          toolchain build kivy
 
       - name: Build IPA with Buildozer
         run: |
-          # Cấp quyền ghi
           chmod -R 755 .
-          
-          # Xác định SDK iOS
           export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "Using SDK: $SDKROOT"
           
-          # Chạy build
-          # Thêm yes để tự động đồng ý điều khoản
-          yes | buildozer ios debug
+          # Chạy buildozer
+          yes | buildozer -v ios debug
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
