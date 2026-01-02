@@ -7,8 +7,8 @@ jobs:
   build-ios:
     runs-on: macos-14
     
-    # QUAN TRỌNG: Không set LDFLAGS/CPPFLAGS toàn cục ở đây nữa.
-    # Chỉ set CFLAGS để tắt lỗi strict của Xcode 15/16
+    # Chỉ giữ lại CFLAGS để tắt lỗi strict của Xcode
+    # KHÔNG thêm LDFLAGS/CPPFLAGS ở đây để tránh xung đột
     env:
       CFLAGS: "-Wno-implicit-function-declaration -Wno-error=implicit-function-declaration"
 
@@ -22,31 +22,31 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Cài đặt các công cụ còn thiếu trên macos-14
       - name: Install System Dependencies
         run: |
           brew update
-          # Cài các công cụ build cơ bản
+          # Cài autoconf, automake, libtool, pkg-config
           brew install autoconf automake libtool pkg-config cmake || true
           brew link --overwrite autoconf automake libtool pkg-config cmake || true
 
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          # Cython 3.0.11
+          # Cython 3.0.11 (Bắt buộc)
           pip install "Cython==3.0.11"
           pip install buildozer cookiecutter
-          # Cài Kivy-iOS
+          # Kivy-iOS mới nhất
           pip install git+https://github.com/kivy/kivy-ios.git
 
-      # BƯỚC QUAN TRỌNG: Build OpenSSL bằng toolchain trước
-      # Thay vì dùng OpenSSL của máy (gây lỗi), ta build bản riêng cho iOS
+      # QUAY LẠI THỨ TỰ CHUẨN: Build python3 trước
+      # toolchain sẽ tự động build openssl khi build python3
       - name: Build Core Recipes
         run: |
-          # Build OpenSSL trước để Python tìm thấy nó
-          toolchain build openssl
-          
-          # Sau đó mới build Python và Kivy
+          # Bước này sẽ thiết lập Context và hostpython_ver, sau đó tự build openssl
           toolchain build python3
+          
+          # Sau đó build kivy
           toolchain build kivy
 
       - name: Build IPA with Buildozer
